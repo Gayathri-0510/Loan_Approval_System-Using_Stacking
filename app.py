@@ -12,7 +12,7 @@ from sklearn.model_selection import cross_val_predict
 # ----------------------------
 # 1️⃣ Load dataset
 # ----------------------------
-df = pd.read_csv("loan_prediction.csv")  # make sure CSV is in same folder
+df = pd.read_csv("loan_prediction.csv")  # make sure CSV is in the same folder
 
 # Drop Loan_ID
 df.drop('Loan_ID', axis=1, inplace=True)
@@ -45,7 +45,7 @@ base_models = [lr, dt, rf]
 for model in base_models:
     model.fit(X_scaled, y)
 
-# Generate meta features
+# Generate meta features for stacking
 train_meta_features = []
 for model in base_models:
     oof_pred = cross_val_predict(model, X_scaled, y, cv=5, method="predict")
@@ -66,18 +66,26 @@ st.write("This system uses a **Stacking Ensemble ML model** to predict loan appr
 # Sidebar Inputs
 st.sidebar.header("Applicant Details")
 
-# --- Numeric inputs with realistic steps ---
+# --- Numeric inputs ---
 applicant_income = st.sidebar.number_input(
-    "Applicant Income", min_value=0, step=1000, value=5000, format="%d"
+    "Applicant Income (₹)", min_value=0, step=1000, value=5000, format="%d"
 )
 coapplicant_income = st.sidebar.number_input(
-    "Co-Applicant Income", min_value=0, step=1000, value=0, format="%d"
+    "Co-Applicant Income (₹)", min_value=0, step=1000, value=0, format="%d"
 )
+
+# --- Loan Amount proportional to income ---
+max_loan = max(5000, (applicant_income + coapplicant_income) * 20)  # approx 20 months income
 loan_amount = st.sidebar.number_input(
-    "Loan Amount", min_value=0, step=500, value=100, format="%d"
+    "Loan Amount (₹)", min_value=1000, max_value=max_loan, step=500, value=applicant_income * 2
 )
-loan_term = st.sidebar.number_input(
-    "Loan Amount Term (months)", min_value=12, step=12, value=360, format="%d"
+
+# --- Loan Term as selectbox with realistic options ---
+loan_terms = [12, 24, 36, 48, 60, 84, 120, 180, 240, 300, 360]  # months
+loan_term = st.sidebar.selectbox(
+    "Loan Amount Term (months)",
+    options=loan_terms,
+    index=loan_terms.index(12)
 )
 
 # --- Categorical inputs ---
@@ -89,7 +97,7 @@ self_employed = st.sidebar.selectbox("Self-Employed", ("Yes", "No"))
 credit_history = st.sidebar.radio("Credit History", ("Yes", "No"))
 property_area = st.sidebar.selectbox("Property Area", ("Urban", "Semi-Urban", "Rural"))
 
-# Encode inputs to match training data
+# Encode inputs
 gender_val = 1 if gender == "Male" else 0
 married_val = 1 if married == "Yes" else 0
 education_val = 1 if education == "Graduate" else 0
@@ -98,7 +106,7 @@ credit_val = 1 if credit_history == "Yes" else 0
 property_map = {"Urban": 2, "Semi-Urban": 1, "Rural": 0}
 property_val = property_map[property_area]
 
-# Create input dataframe matching all columns
+# Create input dataframe
 input_df = pd.DataFrame([[applicant_income, coapplicant_income, loan_amount, loan_term,
                           gender_val, married_val, dependents, education_val,
                           self_employed_val, credit_val, property_val]],
